@@ -1,0 +1,466 @@
+# Clasificador mejorado de modelos de servicio en la nube: IaaS, SaaS, FaaS
+# Incluye Machine Learning para mejor clasificación
+
+import re
+from collections import Counter
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import train_test_split
+import pickle
+import os
+
+# Datos de entrenamiento para Machine Learning
+TRAINING_DATA = [
+    # IaaS examples
+    ("Amazon EC2 proporciona servidores virtuales para desplegar aplicaciones", "IaaS"),
+    ("Microsoft Azure Virtual Machines te permite crear máquinas virtuales", "IaaS"),
+    ("Google Compute Engine ofrece instancias de computación escalables", "IaaS"),
+    ("AWS S3 es un servicio de almacenamiento de objetos en la nube", "IaaS"),
+    ("DigitalOcean proporciona droplets que son servidores virtuales", "IaaS"),
+    ("Alquila capacidad computacional en la nube sin gestionar hardware", "IaaS"),
+    ("Servicio que te permite provisionar recursos de infraestructura", "IaaS"),
+    ("Plataforma que proporciona máquinas virtuales y almacenamiento", "IaaS"),
+    ("Recursos computacionales que puedes alquilar por hora", "IaaS"),
+    ("Infraestructura de red y servidores virtualizados", "IaaS"),
+    
+    # SaaS examples
+    ("Google Docs permite editar documentos en línea desde el navegador", "SaaS"),
+    ("Salesforce es una plataforma CRM para gestión de clientes", "SaaS"),
+    ("Microsoft 365 incluye Word, Excel y PowerPoint en la nube", "SaaS"),
+    ("Slack es una herramienta de colaboración en tiempo real", "SaaS"),
+    ("Zoom permite videoconferencias sin instalar software", "SaaS"),
+    ("Herramienta que puedes usar desde tu navegador sin instalar nada", "SaaS"),
+    ("Aplicación web que se actualiza automáticamente", "SaaS"),
+    ("Software que sincroniza tus datos en la nube", "SaaS"),
+    ("Solución completa accesible desde cualquier dispositivo", "SaaS"),
+    ("Interfaz de usuario que no requiere instalación local", "SaaS"),
+    
+    # FaaS examples
+    ("AWS Lambda ejecuta funciones en respuesta a eventos sin gestionar servidores", "FaaS"),
+    ("Azure Functions permite ejecutar código bajo demanda", "FaaS"),
+    ("Google Cloud Functions ejecuta código en respuesta a eventos", "FaaS"),
+    ("Código que se ejecuta automáticamente cuando ocurre algo específico", "FaaS"),
+    ("Función que se activa cuando llega un archivo", "FaaS"),
+    ("Sistema que ejecuta tu código temporalmente cuando lo necesitas", "FaaS"),
+    ("Procesamiento automático de eventos sin servidores permanentes", "FaaS"),
+    ("Código que responde a triggers específicos", "FaaS"),
+    ("Ejecución temporal de funciones en la nube", "FaaS"),
+    ("Serverless computing para procesamiento de eventos", "FaaS"),
+]
+
+class CloudModelClassifier:
+    def __init__(self):
+        self.ml_model = None
+        self.vectorizer = None
+        self.is_trained = False
+        
+    def preprocess_text(self, texto):
+        """Preprocesa el texto para ML"""
+        if not texto:
+            return ""
+        # Convertir a minúsculas y limpiar
+        texto = texto.lower()
+        # Remover caracteres especiales pero mantener espacios
+        texto = re.sub(r'[^\w\s]', ' ', texto)
+        # Remover espacios extra
+        texto = ' '.join(texto.split())
+        return texto
+    
+    def train_model(self, training_data=None):
+        """Entrena el modelo de Machine Learning"""
+        if training_data is None:
+            training_data = TRAINING_DATA
+            
+        # Separar textos y etiquetas
+        texts = [self.preprocess_text(text) for text, _ in training_data]
+        labels = [label for _, label in training_data]
+        
+        # Crear pipeline con TF-IDF y Naive Bayes
+        self.ml_model = Pipeline([
+            ('tfidf', TfidfVectorizer(max_features=1000, ngram_range=(1, 2))),
+            ('classifier', MultinomialNB())
+        ])
+        
+        # Entrenar el modelo
+        self.ml_model.fit(texts, labels)
+        self.is_trained = True
+        
+        print("✅ Modelo de Machine Learning entrenado exitosamente")
+    
+    def predict_ml(self, texto):
+        """Predice usando Machine Learning"""
+        if not self.is_trained:
+            return None
+            
+        processed_text = self.preprocess_text(texto)
+        if not processed_text:
+            return None
+            
+        try:
+            prediction = self.ml_model.predict([processed_text])[0]
+            confidence = max(self.ml_model.predict_proba([processed_text])[0])
+            return prediction, confidence
+        except:
+            return None
+    
+    def save_model(self, filename='cloud_classifier_model.pkl'):
+        """Guarda el modelo entrenado"""
+        if self.is_trained:
+            with open(filename, 'wb') as f:
+                pickle.dump(self.ml_model, f)
+            print(f"✅ Modelo guardado en {filename}")
+    
+    def load_model(self, filename='cloud_classifier_model.pkl'):
+        """Carga un modelo pre-entrenado"""
+        if os.path.exists(filename):
+            with open(filename, 'rb') as f:
+                self.ml_model = pickle.load(f)
+            self.is_trained = True
+            print(f"✅ Modelo cargado desde {filename}")
+            return True
+        return False
+
+# Instancia global del clasificador ML
+ml_classifier = CloudModelClassifier()
+
+def es_iaas(texto):
+    """
+    Determina si el texto corresponde a IaaS (Infrastructure as a Service).
+    Args:
+        texto (str): Descripción del servicio o producto en la nube.
+    Returns:
+        bool: True si corresponde a IaaS, False en caso contrario.
+    """
+    # Palabras clave directas
+    iaas_keywords = [
+        'infraestructura', 'servidor', 'virtual machine', 'vm', 'almacenamiento', 
+        'red', 'network', 'hardware', 'computo', 'virtualización', 'virtualization', 
+        'ec2', 'vps', 'disco duro', 'cpu', 'ram', 'instancia', 'máquina virtual'
+    ]
+    
+    # Patrones descriptivos más flexibles
+    iaas_patterns = [
+        'proporciona recursos', 'gestiona servidores', 'alquila servidores',
+        'máquinas virtuales', 'recursos computacionales', 'capacidad de procesamiento',
+        'espacio de almacenamiento', 'redes y conectividad', 'infraestructura de red',
+        'sistema operativo', 'plataforma de hosting', 'datacenter', 'centro de datos',
+        'recursos físicos', 'hardware virtualizado', 'provisionamiento de recursos'
+    ]
+    
+    # Verificar palabras clave directas
+    if any(palabra in texto for palabra in iaas_keywords):
+        return True
+    
+    # Verificar patrones descriptivos
+    if any(patron in texto for patron in iaas_patterns):
+        return True
+    
+    return False
+
+def es_saas(texto):
+    """
+    Determina si el texto corresponde a SaaS (Software as a Service).
+    Args:
+        texto (str): Descripción del servicio o producto en la nube.
+    Returns:
+        bool: True si corresponde a SaaS, False en caso contrario.
+    """
+    # Palabras clave directas
+    saas_keywords = [
+        'software', 'aplicación', 'app', 'servicio en la nube', 'correo', 
+        'email', 'crm', 'erp', 'ofimática', 'office', 'google docs', 
+        'salesforce', 'usuario final', 'web', 'navegador', 'browser', 
+        'plataforma', 'gestión', 'colaboración', 'herramienta', 'suite'
+    ]
+    
+    # Patrones descriptivos más flexibles
+    saas_patterns = [
+        'acceso desde navegador', 'aplicación web', 'software como servicio',
+        'herramienta en línea', 'solución completa', 'interfaz de usuario',
+        'usado por usuarios finales', 'no requiere instalación', 'acceso inmediato',
+        'suscripción mensual', 'pago por uso', 'actualizaciones automáticas',
+        'colaboración en tiempo real', 'almacenamiento en la nube', 'sincronización'
+    ]
+    
+    # Verificar palabras clave directas
+    if any(palabra in texto for palabra in saas_keywords):
+        return True
+    
+    # Verificar patrones descriptivos
+    if any(patron in texto for patron in saas_patterns):
+        return True
+    
+    return False
+
+def es_faas(texto):
+    """
+    Determina si el texto corresponde a FaaS (Function as a Service).
+    Args:
+        texto (str): Descripción del servicio o producto en la nube.
+    Returns:
+        bool: True si corresponde a FaaS, False en caso contrario.
+    """
+    # Palabras clave directas
+    faas_keywords = [
+        'función', 'eventos', 'serverless', 'lambda', 'ejecución bajo demanda', 
+        'código bajo demanda', 'event-driven', 'sin servidor', 'invocación', 
+        'runtime', 'microservicio', 'microservicios', 'trigger', 'gatillo'
+    ]
+    
+    # Patrones descriptivos más flexibles
+    faas_patterns = [
+        'ejecuta código', 'respuesta a eventos', 'sin gestionar servidores',
+        'código que se ejecuta', 'función que se activa', 'procesamiento automático',
+        'ejecución temporal', 'código que responde', 'función que procesa',
+        'activación automática', 'procesamiento bajo demanda', 'código reactivo',
+        'función que se ejecuta', 'código que se activa', 'procesamiento de eventos'
+    ]
+    
+    # Verificar palabras clave directas
+    if any(palabra in texto for palabra in faas_keywords):
+        return True
+    
+    # Verificar patrones descriptivos
+    if any(patron in texto for patron in faas_patterns):
+        return True
+    
+    return False
+
+def clasificar_modelo_cloud(texto, use_ml=True):
+    """
+    Clasifica el texto como IaaS, SaaS o FaaS usando reglas básicas y ML.
+    Args:
+        texto (str): Descripción del servicio o producto en la nube.
+        use_ml (bool): Si usar Machine Learning además de reglas básicas.
+    Returns:
+        str: 'IaaS', 'SaaS', 'FaaS', 'Desconocido' o 'Entrada inválida'
+    """
+    # Validación de entrada
+    if not isinstance(texto, str) or not texto.strip():
+        return 'Entrada inválida'
+    
+    texto_lower = texto.lower()
+    
+    # Primero intentar con reglas básicas
+    if es_iaas(texto_lower):
+        return 'IaaS'
+    if es_saas(texto_lower):
+        return 'SaaS'
+    if es_faas(texto_lower):
+        return 'FaaS'
+    
+    # Si las reglas básicas no funcionan y ML está habilitado, usar ML
+    if use_ml and ml_classifier.is_trained:
+        ml_result = ml_classifier.predict_ml(texto)
+        if ml_result:
+            prediction, confidence = ml_result
+            # Solo usar ML si la confianza es alta (>0.6)
+            if confidence > 0.6:
+                return prediction
+    
+    return 'Desconocido'
+
+def clasificar_modelo_cloud_avanzado(texto, use_ml=True, confidence_threshold=0.6):
+    """
+    Clasificación avanzada que incluye confianza del modelo ML.
+    Args:
+        texto (str): Descripción del servicio o producto en la nube.
+        use_ml (bool): Si usar Machine Learning.
+        confidence_threshold (float): Umbral de confianza para ML (0.0-1.0).
+    Returns:
+        dict: {'clasificacion': str, 'confianza': float, 'metodo': str}
+    """
+    # Validación de entrada
+    if not isinstance(texto, str) or not texto.strip():
+        return {'clasificacion': 'Entrada inválida', 'confianza': 0.0, 'metodo': 'validacion'}
+    
+    texto_lower = texto.lower()
+    
+    # Intentar con reglas básicas primero
+    if es_iaas(texto_lower):
+        return {'clasificacion': 'IaaS', 'confianza': 0.9, 'metodo': 'reglas_basicas'}
+    if es_saas(texto_lower):
+        return {'clasificacion': 'SaaS', 'confianza': 0.9, 'metodo': 'reglas_basicas'}
+    if es_faas(texto_lower):
+        return {'clasificacion': 'FaaS', 'confianza': 0.9, 'metodo': 'reglas_basicas'}
+    
+    # Si las reglas básicas no funcionan y ML está habilitado
+    if use_ml and ml_classifier.is_trained:
+        ml_result = ml_classifier.predict_ml(texto)
+        if ml_result:
+            prediction, confidence = ml_result
+            if confidence > confidence_threshold:
+                return {'clasificacion': prediction, 'confianza': confidence, 'metodo': 'machine_learning'}
+    
+    return {'clasificacion': 'Desconocido', 'confianza': 0.0, 'metodo': 'ninguno'}
+
+# Función para inicializar y entrenar el modelo
+def inicializar_clasificador_ml():
+    """Inicializa y entrena el clasificador de Machine Learning"""
+    print("🤖 Inicializando clasificador de Machine Learning...")
+    
+    # Intentar cargar modelo existente
+    if ml_classifier.load_model():
+        return True
+    
+    # Si no existe, entrenar nuevo modelo
+    print("📚 Entrenando nuevo modelo con datos de ejemplo...")
+    ml_classifier.train_model()
+    ml_classifier.save_model()
+    return True
+
+def mostrar_menu():
+    """Muestra el menú principal de opciones"""
+    print("\n" + "="*60)
+    print("🌩️  CLASIFICADOR DE MODELOS DE SERVICIO EN LA NUBE")
+    print("="*60)
+    print("1. Clasificación básica (solo reglas)")
+    print("2. Clasificación con Machine Learning")
+    print("3. Clasificación avanzada (con confianza)")
+    print("4. Ver ejemplos de uso")
+    print("5. Salir")
+    print("="*60)
+
+def mostrar_ejemplos():
+    """Muestra ejemplos de uso del clasificador"""
+    print("\n📚 EJEMPLOS DE USO:")
+    print("-" * 40)
+    
+    ejemplos = [
+        ("Amazon EC2 proporciona servidores virtuales", "IaaS"),
+        ("Google Docs permite editar documentos en línea", "SaaS"),
+        ("AWS Lambda ejecuta funciones en respuesta a eventos", "FaaS"),
+        ("Servicio que te permite alquilar capacidad computacional", "IaaS"),
+        ("Herramienta que puedes usar desde tu navegador", "SaaS"),
+        ("Código que se ejecuta automáticamente", "FaaS"),
+    ]
+    
+    for texto, categoria in ejemplos:
+        print(f"Texto: {texto}")
+        print(f"Categoría esperada: {categoria}")
+        print("-" * 40)
+
+def procesar_clasificacion(texto, tipo_clasificacion):
+    """Procesa la clasificación según el tipo seleccionado"""
+    print(f"\n🔍 Analizando: '{texto}'")
+    print("-" * 50)
+    
+    if tipo_clasificacion == 1:
+        # Clasificación básica
+        resultado = clasificar_modelo_cloud(texto, use_ml=False)
+        print(f"📊 Resultado: {resultado}")
+        print(f"🔧 Método: Reglas básicas")
+        
+    elif tipo_clasificacion == 2:
+        # Clasificación con ML
+        resultado = clasificar_modelo_cloud(texto, use_ml=True)
+        print(f"📊 Resultado: {resultado}")
+        print(f"🤖 Método: Híbrido (Reglas + ML)")
+        
+    elif tipo_clasificacion == 3:
+        # Clasificación avanzada
+        resultado = clasificar_modelo_cloud_avanzado(texto)
+        print(f"📊 Resultado: {resultado['clasificacion']}")
+        print(f"📈 Confianza: {resultado['confianza']:.2f}")
+        print(f"🔧 Método: {resultado['metodo']}")
+        
+        # Explicación adicional
+        if resultado['clasificacion'] != 'Desconocido':
+            explicaciones = {
+                'IaaS': 'Infrastructure as a Service - Proporciona recursos de infraestructura como servidores, almacenamiento y redes.',
+                'SaaS': 'Software as a Service - Ofrece aplicaciones completas accesibles desde el navegador.',
+                'FaaS': 'Function as a Service - Ejecuta código específico en respuesta a eventos.'
+            }
+            print(f"💡 Explicación: {explicaciones.get(resultado['clasificacion'], '')}")
+
+def interfaz_usuario():
+    """Interfaz interactiva para el usuario"""
+    print("🚀 Bienvenido al Clasificador de Modelos de Servicio en la Nube")
+    print("Este sistema puede clasificar servicios como IaaS, SaaS o FaaS")
+    
+    # Inicializar ML
+    inicializar_clasificador_ml()
+    
+    while True:
+        mostrar_menu()
+        
+        try:
+            opcion = input("\nSelecciona una opción (1-5): ").strip()
+            
+            if opcion == "1" or opcion == "2" or opcion == "3":
+                print(f"\n📝 Ingresa la descripción del servicio que quieres clasificar:")
+                texto = input("> ").strip()
+                
+                if texto:
+                    procesar_clasificacion(texto, int(opcion))
+                else:
+                    print("❌ Por favor ingresa un texto válido.")
+                    
+            elif opcion == "4":
+                mostrar_ejemplos()
+                
+            elif opcion == "5":
+                print("\n👋 ¡Gracias por usar el clasificador!")
+                break
+                
+            else:
+                print("❌ Opción no válida. Por favor selecciona 1-5.")
+                
+        except KeyboardInterrupt:
+            print("\n\n👋 ¡Hasta luego!")
+            break
+        except Exception as e:
+            print(f"❌ Error: {e}")
+
+# Ejemplo de uso
+if __name__ == "__main__":
+    # Para ejecutar el programa en modo interactivo, ejecutar el siguiente comando:
+    # python cloud_models_classifier.py
+
+    # Para ejecutar el programa en modo de prueba, ejecutar el siguiente comando:
+    # python cloud_models_classifier.py --test
+
+    # Verificar si se ejecuta en modo interactivo o de prueba
+    import sys
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "--test":
+        # Modo de prueba automática
+        inicializar_clasificador_ml()
+        
+        ejemplos = [
+            # Ejemplos con palabras clave directas
+            "Amazon EC2 proporciona servidores virtuales para desplegar aplicaciones.",
+            "Google Docs permite editar documentos en línea desde el navegador.",
+            "AWS Lambda ejecuta funciones en respuesta a eventos sin gestionar servidores.",
+            
+            # Ejemplos con descripciones más naturales (sin palabras clave exactas)
+            "Servicio que te permite alquilar capacidad computacional en la nube.",
+            "Herramienta que puedes usar desde tu navegador sin instalar nada.",
+            "Código que se ejecuta automáticamente cuando ocurre algo específico.",
+            "Plataforma que proporciona recursos físicos virtualizados.",
+            "Aplicación que se actualiza automáticamente y sincroniza tus datos.",
+            "Sistema que ejecuta tu código temporalmente cuando lo necesitas.",
+            
+            # Casos de prueba de validación
+            "",  # Caso de entrada vacía
+            None,  # Caso de entrada None
+            12345,  # Caso de entrada no string
+        ]
+        
+        print("🔍 Probando clasificación básica:")
+        for texto in ejemplos:
+            resultado = clasificar_modelo_cloud(texto)
+            print(f"Texto: {texto}\nClasificación: {resultado}\n")
+        
+        print("\n🤖 Probando clasificación avanzada con ML:")
+        for texto in ejemplos:
+            if texto:  # Solo probar textos válidos
+                resultado = clasificar_modelo_cloud_avanzado(texto)
+                print(f"Texto: {texto}")
+                print(f"Clasificación: {resultado['clasificacion']}")
+                print(f"Confianza: {resultado['confianza']:.2f}")
+                print(f"Método: {resultado['metodo']}\n")
+    else:
+        # Modo interactivo
+        interfaz_usuario()
