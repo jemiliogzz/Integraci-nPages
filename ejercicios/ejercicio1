@@ -19,7 +19,10 @@
   <main>
     <section>
       <h2>Descripción</h2>
-      <p>Este script entrena una red neuronal convolucional para reconocer dígitos escritos a mano usando el dataset MNIST.</p>
+      <p>Ejercicio realizado en clase.</p>
+      <ul>
+        <li><a href="ejercicios/ejercicio1.py">Ejercicio 1: Clasificación de dígitos con CNN (ver código)</a></li>
+      </ul>
     </section>
 
     <section>
